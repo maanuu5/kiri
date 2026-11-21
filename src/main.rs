@@ -4,6 +4,7 @@ mod browser;
 mod closer;
 mod config;
 mod detector;
+mod sprite;
 mod uia_address;
 mod uia_tab;
 mod url_matcher;
