@@ -1,5 +1,6 @@
 use std::sync::mpsc::channel;
 
+mod animator;
 mod browser;
 mod closer;
 mod config;
