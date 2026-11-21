@@ -4,6 +4,7 @@ mod browser;
 mod closer;
 mod config;
 mod detector;
+mod overlay;
 mod sprite;
 mod uia_address;
 mod uia_tab;
