@@ -91,15 +91,15 @@ pub fn find_active_tab_telemetry(
     };
 
     // 3. Language-Agnostic Close Button Locator
-    // In Chromium tabs, the close button is the child Button control.
+    // In Chromium tabs, the close button is the rightmost button on the tab item,
+    // positioned past any audio/volume indicator or site icons.
     let button_condition = automation
         .create_property_condition(UIProperty::ControlType, (ControlType::Button as i32).into(), None)?;
 
     let buttons = active_item.find_all(TreeScope::Children, &button_condition)?;
 
-    let mut close_button_rect = None;
-    let mut close_button_element = None;
-    let mut is_pinned = true;
+    let mut rightmost_button = None;
+    let mut max_right = active_tab_rect.left + (active_tab_rect.width() / 2);
 
     for btn in buttons {
         if let Ok(rect) = btn.get_bounding_rectangle() {
@@ -110,15 +110,19 @@ pub fn find_active_tab_telemetry(
                 bottom: rect.get_bottom(),
             };
 
-            // In horizontal tabs, the close button is positioned on the right half of the tab.
-            if b_rect.left >= active_tab_rect.left + (active_tab_rect.width() / 3) {
-                close_button_rect = Some(b_rect);
-                close_button_element = Some(btn);
-                is_pinned = false;
-                break;
+            // Compare right edge so we always select the X button (far right)
+            // instead of the audio/volume indicator button to its left.
+            if b_rect.right > max_right {
+                max_right = b_rect.right;
+                rightmost_button = Some((b_rect, btn));
             }
         }
     }
+
+    let (close_button_rect, close_button_element, is_pinned) = match rightmost_button {
+        Some((rect, btn)) => (Some(rect), Some(btn), false),
+        None => (None, None, true),
+    };
 
     Ok(Some(TabTelemetry {
         tab_strip_rect,

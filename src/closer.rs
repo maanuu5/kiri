@@ -13,24 +13,21 @@ use windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
 pub enum CloseResult {
     /// Succeeded using UIA InvokePattern on the exact close button.
     InvokedDirectly,
-    /// Direct invoke failed or was unsupported, but element click succeeded.
-    ClickedButton,
-    /// Direct invoke failed, but safe Ctrl+W fallback succeeded.
+    /// Direct invoke failed or was unsupported, but safe Ctrl+W fallback succeeded.
     SentCtrlWFallback,
     /// Tab close was aborted because foreground window changed or modifiers were held.
     AbortedSafetyCheck,
     /// Tab was pinned or had no close target.
     SkippedPinned,
-    /// COM invocation failed and fallback was bypassed.
+    /// Invocation failed and fallback was bypassed.
     Failed(String),
 }
 
-/// Executes a race-safe tab closure.
+/// Executes a race-safe tab closure without moving or hijacking the user's mouse cursor.
 ///
 /// Tries direct UIA InvokePattern on the specific tab's close button first.
-/// If that is not supported by the browser, clicks the close button's clickable point.
-/// Finally, if neither succeeded, strictly verifies safety conditions before
-/// synthesizing a Ctrl+W keystroke.
+/// If that is not supported by the browser, cleanly synthesizes a verified Ctrl+W keystroke.
+/// Under no circumstances is the user's mouse cursor moved or clicked.
 pub fn execute_safe_tab_close(
     close_button: Option<&UIElement>,
     target_hwnd: HWND,
@@ -41,7 +38,7 @@ pub fn execute_safe_tab_close(
         return CloseResult::SkippedPinned;
     }
 
-    // 1. Primary Path: Direct UIA InvokePattern on the exact tab close button.
+    // 1. Primary Path: Direct UIA InvokePattern on the exact tab close button (mouse-free).
     if let Some(btn) = close_button {
         let invoke_attempt = catch_unwind(|| {
             if let Ok(pattern) = btn.get_pattern::<UIInvokePattern>() {
@@ -55,18 +52,10 @@ pub fn execute_safe_tab_close(
         if let Ok(true) = invoke_attempt {
             return CloseResult::InvokedDirectly;
         }
-
-        // 2. Secondary Path: UIA simulated click on the close button element
-        let click_attempt = catch_unwind(|| {
-            btn.click().is_ok()
-        });
-
-        if let Ok(true) = click_attempt {
-            return CloseResult::ClickedButton;
-        }
     }
 
-    // 3. Strict Fallback: Synthesize Ctrl+W ONLY if all strict safety conditions pass.
+    // 2. Strict Fallback: Synthesize Ctrl+W ONLY if all strict safety conditions pass.
+    // This is 100% non-intrusive and never touches the user's mouse.
     unsafe {
         // Verification 1: Foreground HWND must still be the target browser
         let foreground = GetForegroundWindow();
