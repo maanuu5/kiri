@@ -154,7 +154,7 @@ impl Animator {
     /// Advances the animation timer by delta time (clamped to prevent wake spikes).
     /// Returns `Some(frame_index)` if the rendered frame changed on this tick.
     pub fn update(&mut self, raw_dt: f32) -> Option<usize> {
-        let dt = raw_dt.min(0.20); // Clamp large delta-times (e.g. system sleep/wake spikes)
+        let dt = raw_dt.min(0.50); // Clamp large delta-times (e.g. system sleep/wake spikes)
         let spec = self.current_clip.spec();
 
         if self.is_finished && !spec.loops {

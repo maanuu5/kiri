@@ -167,29 +167,31 @@ impl CatFsm {
         }
 
         // 1. Live window & focus verification
-        if self.target_hwnd.0.is_null() || unsafe { !IsWindow(Some(self.target_hwnd)).as_bool() } {
-            // Browser window closed
-            if self.state != CatState::Falling {
-                self.start_falling();
-            }
-        } else if unsafe { IsIconic(self.target_hwnd).as_bool() } {
-            // Browser minimized
-            if self.state != CatState::Falling {
-                self.start_falling();
-            }
-        } else {
-            // Live window bounds tracking at 60 FPS
-            let mut rect = RECT::default();
-            let ok = unsafe { GetWindowRect(self.target_hwnd, &mut rect) };
-            if ok.is_ok() {
-                self.last_window_rect = rect;
-            }
+        if !self.target_hwnd.0.is_null() {
+            if unsafe { !IsWindow(Some(self.target_hwnd)).as_bool() } {
+                // Browser window closed
+                if self.state != CatState::Falling {
+                    self.start_falling();
+                }
+            } else if unsafe { IsIconic(self.target_hwnd).as_bool() } {
+                // Browser minimized
+                if self.state != CatState::Falling {
+                    self.start_falling();
+                }
+            } else {
+                // Live window bounds tracking at 60 FPS
+                let mut rect = RECT::default();
+                let ok = unsafe { GetWindowRect(self.target_hwnd, &mut rect) };
+                if ok.is_ok() {
+                    self.last_window_rect = rect;
+                }
 
-            // Alt+Tab guard: if user switched to another application
-            let fg = unsafe { GetForegroundWindow() };
-            if fg != self.target_hwnd && self.state != CatState::Falling && self.state != CatState::ConfusedAbort {
-                self.transition_to(CatState::Hidden);
-                return FsmAction::HideOverlay;
+                // Alt+Tab guard: if user switched to another application
+                let fg = unsafe { GetForegroundWindow() };
+                if fg != self.target_hwnd && self.state != CatState::Falling && self.state != CatState::ConfusedAbort {
+                    self.transition_to(CatState::Hidden);
+                    return FsmAction::HideOverlay;
+                }
             }
         }
 
@@ -361,7 +363,7 @@ impl CatFsm {
             if self.is_maximized || screen_strip_top < scaled_h {
                 // Maximized window: perches along the tab-bar/address-bar divider
                 // Clamped to >= 0 so cat is 100% visible on top of screen
-                let base_y = screen_strip_bottom - (28.0 * self.scale);
+                let base_y = screen_strip_bottom - (PAW_OFFSET_Y * self.scale);
                 self.animator.pos_y = base_y.max(self.last_window_rect.top.max(0) as f32);
             } else {
                 // Windowed mode: perches comfortably on the tab bar top
@@ -444,8 +446,20 @@ impl CatFsm {
 
     pub fn transition_to(&mut self, new_state: CatState) {
         self.state = new_state;
-        if new_state == CatState::Hidden {
-            self.swat_fired = false;
+        match new_state {
+            CatState::Hidden => {
+                self.swat_fired = false;
+            }
+            CatState::WalkingToTarget => {
+                self.animator.play(AnimationClip::Walk);
+            }
+            CatState::SwatSequence => {
+                self.animator.play(AnimationClip::WindUp);
+            }
+            CatState::SmugExit => {
+                self.animator.play(AnimationClip::SmugLick);
+            }
+            _ => {}
         }
     }
 }
@@ -531,5 +545,36 @@ mod tests {
         telemetry.detector.current_strike = StrikeLevel::Strike3;
         fsm.apply_telemetry(&telemetry);
         assert_eq!(fsm.state, CatState::Alert);
+    }
+
+    #[test]
+    fn test_swat_sequence_progression() {
+        let mut fsm = CatFsm::new(2);
+        fsm.transition_to(CatState::SwatSequence);
+        assert_eq!(fsm.animator.current_clip, AnimationClip::WindUp);
+
+        // Advance past WindUp (120ms)
+        fsm.animator.update(0.130);
+        let action = fsm.update(0.016);
+        assert_eq!(action, FsmAction::None);
+        assert_eq!(fsm.animator.current_clip, AnimationClip::Anticipate);
+
+        // Advance past Anticipate (180ms) -> triggers Impact and ExecuteSwat!
+        fsm.animator.update(0.190);
+        let action = fsm.update(0.016);
+        assert_eq!(action, FsmAction::ExecuteSwat);
+        assert_eq!(fsm.animator.current_clip, AnimationClip::Impact);
+
+        // Advance past Impact (80ms)
+        fsm.animator.update(0.090);
+        let action = fsm.update(0.016);
+        assert_eq!(action, FsmAction::None);
+        assert_eq!(fsm.animator.current_clip, AnimationClip::FollowThrough);
+
+        // Advance past FollowThrough (220ms) -> SmugExit
+        fsm.animator.update(0.230);
+        let action = fsm.update(0.016);
+        assert_eq!(action, FsmAction::None);
+        assert_eq!(fsm.state, CatState::SmugExit);
     }
 }
