@@ -80,6 +80,7 @@ pub fn spawn_watcher_thread(
         let mut last_close_btn = None;
         let mut last_is_pinned = false;
         let mut last_url_matching = false;
+        let mut last_swat_time: Option<Instant> = None;
 
         loop {
             // Check for incoming commands
@@ -90,14 +91,28 @@ pub fn spawn_watcher_thread(
                         return;
                     }
                     WatcherCommand::ExecuteSwat => {
-                        if let Some(target_hwnd) = last_hwnd {
-                            let result = execute_safe_tab_close(
-                                last_close_btn.as_ref(),
-                                target_hwnd,
-                                last_is_pinned,
-                                last_url_matching,
-                            );
-                            let _ = event_tx.send(WatcherEvent::SwatExecuted(result));
+                        let now = Instant::now();
+                        let cooldown_passed = match last_swat_time {
+                            Some(t) => now.duration_since(t) > Duration::from_secs(10),
+                            None => true,
+                        };
+
+                        if cooldown_passed {
+                            last_swat_time = Some(now);
+                            if let Some(target_hwnd) = last_hwnd {
+                                let result = execute_safe_tab_close(
+                                    last_close_btn.as_ref(),
+                                    target_hwnd,
+                                    last_is_pinned,
+                                    last_url_matching,
+                                );
+                                // CRITICAL: Reset detector immediately to baseline so it never fires in a loop
+                                detector.reset();
+                                address_scanner.invalidate();
+                                last_close_btn = None;
+                                last_url_matching = false;
+                                let _ = event_tx.send(WatcherEvent::SwatExecuted(result));
+                            }
                         }
                     }
                 }

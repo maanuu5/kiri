@@ -112,6 +112,10 @@ fn main() {
                         }
                     }
 
+                    if telemetry.detector.current_strike == StrikeLevel::None {
+                        swat_already_requested = false;
+                    }
+
                     if telemetry.detector.current_strike != last_reported_strike {
                         last_reported_strike = telemetry.detector.current_strike;
                     }
@@ -125,8 +129,8 @@ fn main() {
             }
             WatcherEvent::SwatExecuted(result) => {
                 println!(">>> [SWAT RESULT]: {:?}", result);
+                println!(">>> Single tab swat executed cleanly. Resetting to baseline.");
                 println!("--------------------------------------------------");
-                swat_already_requested = false;
             }
         }
     }
