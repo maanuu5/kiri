@@ -3,7 +3,8 @@
 /// Strips protocol schemes (`https://`, `http://`, `//`), leading `www.`,
 /// trailing slashes where appropriate, and converts ASCII to lowercase.
 pub fn normalize_url(raw: &str) -> String {
-    let mut s = raw.trim();
+    let lower = raw.trim().to_ascii_lowercase();
+    let mut s = lower.as_str();
 
     // Strip common protocol prefixes
     if let Some(rest) = s.strip_prefix("https://") {
@@ -19,7 +20,7 @@ pub fn normalize_url(raw: &str) -> String {
         s = rest;
     }
 
-    s.to_ascii_lowercase()
+    s.to_string()
 }
 
 /// Checks if a normalized URL matches any of the configured target rules.

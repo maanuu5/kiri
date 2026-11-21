@@ -1,6 +1,7 @@
+use uiautomation::controls::ControlType;
 use uiautomation::core::UIAutomation;
-use uiautomation::patterns::SelectionItemPattern;
-use uiautomation::types::{ControlType, TreeScope, UIProperty};
+use uiautomation::patterns::UISelectionItemPattern;
+use uiautomation::types::{TreeScope, UIProperty};
 use uiautomation::UIElement;
 
 use crate::browser::WindowRect;
@@ -37,7 +38,7 @@ pub fn find_active_tab_telemetry(
 ) -> Result<Option<TabTelemetry>, uiautomation::Error> {
     // 1. Locate Tab strip container
     let tab_condition = automation
-        .create_property_condition(UIProperty::ControlType, ControlType::Tab.into())?;
+        .create_property_condition(UIProperty::ControlType, (ControlType::Tab as i32).into(), None)?;
 
     let tab_strip = match root.find_first(TreeScope::Descendants, &tab_condition) {
         Ok(elem) => elem,
@@ -60,13 +61,13 @@ pub fn find_active_tab_telemetry(
 
     // 2. Locate active/selected TabItem
     let tab_item_condition = automation
-        .create_property_condition(UIProperty::ControlType, ControlType::TabItem.into())?;
+        .create_property_condition(UIProperty::ControlType, (ControlType::TabItem as i32).into(), None)?;
 
     let tab_items = tab_strip.find_all(TreeScope::Children, &tab_item_condition)?;
 
     let mut active_tab = None;
     for item in tab_items {
-        if let Ok(selection_pattern) = item.get_pattern::<SelectionItemPattern>() {
+        if let Ok(selection_pattern) = item.get_pattern::<UISelectionItemPattern>() {
             if let Ok(is_selected) = selection_pattern.is_selected() {
                 if is_selected {
                     active_tab = Some(item);
@@ -92,7 +93,7 @@ pub fn find_active_tab_telemetry(
     // 3. Language-Agnostic Close Button Locator
     // In Chromium tabs, the close button is the child Button control.
     let button_condition = automation
-        .create_property_condition(UIProperty::ControlType, ControlType::Button.into())?;
+        .create_property_condition(UIProperty::ControlType, (ControlType::Button as i32).into(), None)?;
 
     let buttons = active_item.find_all(TreeScope::Children, &button_condition)?;
 

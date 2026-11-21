@@ -1,5 +1,4 @@
 use std::sync::mpsc::channel;
-use std::time::Duration;
 
 mod browser;
 mod closer;
@@ -7,6 +6,7 @@ mod config;
 mod detector;
 mod uia_address;
 mod uia_tab;
+mod url_matcher;
 mod watcher;
 
 use config::{ActionMode, AppConfig, StrikeLevel};

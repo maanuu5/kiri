@@ -3,6 +3,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use uiautomation::core::UIAutomation;
+use uiautomation::types::Handle;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::System::Com::{CoInitializeEx, CoUninitialize, COINIT_MULTITHREADED};
 
@@ -119,7 +120,8 @@ pub fn spawn_watcher_thread(
                     let mut norm_url = None;
 
                     // 2. Discover address bar URL via language-agnostic UIA Edit search
-                    if let Ok(root_elem) = automation.element_from_handle(browser.hwnd.0 as _) {
+                    let handle: Handle = unsafe { std::mem::transmute(browser.hwnd) };
+                    if let Ok(root_elem) = automation.element_from_handle(handle) {
                         if let Ok(Some(raw_url)) =
                             address_scanner.read_url(&automation, &root_elem, browser.hwnd.0 as isize)
                         {

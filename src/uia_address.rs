@@ -1,6 +1,6 @@
+use uiautomation::controls::ControlType;
 use uiautomation::core::UIAutomation;
-use uiautomation::patterns::ValuePattern;
-use uiautomation::types::ControlType;
+use uiautomation::patterns::UIValuePattern;
 use uiautomation::UIElement;
 
 /// Scanner and cache for a browser window's address bar edit control.
@@ -24,7 +24,7 @@ impl AddressBarScanner {
     /// Retrieves the current text/URL from the browser's address bar.
     ///
     /// Uses a language-agnostic search for `ControlType::Edit` controls that
-    /// support `ValuePattern`. Caches the handle per HWND to avoid traversing
+    /// support `UIValuePattern`. Caches the handle per HWND to avoid traversing
     /// the UIA tree on every tick.
     pub fn read_url(
         &mut self,
@@ -35,7 +35,7 @@ impl AddressBarScanner {
         // Fast path: attempt to read from cached element
         if self.cached_hwnd == Some(hwnd) {
             if let Some(ref elem) = self.cached_element {
-                if let Ok(value_pattern) = elem.get_pattern::<ValuePattern>() {
+                if let Ok(value_pattern) = elem.get_pattern::<UIValuePattern>() {
                     if let Ok(val) = value_pattern.get_value() {
                         if !val.is_empty() {
                             return Ok(Some(val));
@@ -48,16 +48,16 @@ impl AddressBarScanner {
         }
 
         // Slow path: Locate address bar Edit control supporting ValuePattern
-        let edit_condition = automation
-            .create_property_condition(
-                uiautomation::types::UIProperty::ControlType,
-                ControlType::Edit.into(),
-            )?;
+        let edit_condition = automation.create_property_condition(
+            uiautomation::types::UIProperty::ControlType,
+            (ControlType::Edit as i32).into(),
+            None,
+        )?;
 
         // Search descendant controls for the address bar
         if let Ok(edits) = root.find_all(uiautomation::types::TreeScope::Descendants, &edit_condition) {
             for edit in edits {
-                if let Ok(pattern) = edit.get_pattern::<ValuePattern>() {
+                if let Ok(pattern) = edit.get_pattern::<UIValuePattern>() {
                     if let Ok(val) = pattern.get_value() {
                         // In Chromium browsers, the address bar often contains host names or query paths.
                         // We store the first valid edit control that supports ValuePattern.

@@ -1,4 +1,4 @@
-use uiautomation::patterns::InvokePattern;
+use uiautomation::patterns::UIInvokePattern;
 use uiautomation::UIElement;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::UI::Input::KeyboardAndMouse::{
@@ -8,7 +8,7 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
 use windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
 
 /// Result of an attempted tab close operation.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CloseResult {
     /// Succeeded using UIA InvokePattern on the exact close button.
     InvokedDirectly,
@@ -41,7 +41,7 @@ pub fn execute_safe_tab_close(
     // This is 100% race-safe: even if the user switched tabs 5ms earlier,
     // invoking that exact element either closes that specific tab or harmlessly fails.
     if let Some(btn) = close_button {
-        if let Ok(pattern) = btn.get_pattern::<InvokePattern>() {
+        if let Ok(pattern) = btn.get_pattern::<UIInvokePattern>() {
             if pattern.invoke().is_ok() {
                 return CloseResult::InvokedDirectly;
             }
