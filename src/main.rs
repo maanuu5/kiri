@@ -2,6 +2,7 @@ use std::sync::mpsc::channel;
 
 mod animator;
 mod browser;
+mod cat_fsm;
 mod closer;
 mod config;
 mod detector;
